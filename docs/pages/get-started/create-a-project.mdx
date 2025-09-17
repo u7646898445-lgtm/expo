@@ -1,24 +1,115 @@
----
-title: Create a project
-description: Learn how to create a new Expo project.
-hideTOC: true
----
+import React, { useState, useEffect } from "react";
+import { View, Text, Button, FlatList, TouchableOpacity, Image } from "react-native";
+import { Camera } from "expo-camera";
 
-import { Terminal } from '~/ui/components/Snippet';
+export default function App() {
+  const [points, setPoints] = useState(0);
+  const [wasteCategory, setWasteCategory] = useState(null);
+  const [hasPermission, setHasPermission] = useState(null);
+  const [camera, setCamera] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [showCamera, setShowCamera] = useState(false);
 
-System requirements:
+  useEffect(() => {
+    (async () => {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setHasPermission(status === "granted");
+    })();
+  }, []);
 
-- [Node.js (LTS)](https://nodejs.org/en/).
-- macOS, Windows (Powershell and [WSL 2](https://expo.fyi/wsl)), and Linux are supported.
+  const takePicture = async () => {
+    if (camera) {
+      const data = await camera.takePictureAsync();
+      setPhoto(data.uri);
+      setShowCamera(false);
 
-We recommend starting with the default project created by `create-expo-app`. The default project includes example code to help you get started.
+      // Simuleret AI genkendelse af affald → vælg tilfældig kategori
+      const categories = ["Plastik", "Papir", "Metal", "Glas", "Restaffald"];
+      const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+      setWasteCategory(randomCategory);
+      setPoints(points + 10);
+    }
+  };
 
-To create a new project, run the following command:
+  const rewards = [
+    { id: "1", title: "Espresso House gavekort", cost: 100 },
+    { id: "2", title: "Billet til Grøn Koncert", cost: 200 },
+    { id: "3", title: "Bambus sugerør", cost: 50 },
+    { id: "4", title: "1 times el-løbehjul tur", cost: 150 },
+    { id: "5", title: "Bæredygtig gaveæske (hudpleje/makeup)", cost: 250 },
+    { id: "6", title: "Gaming mussemåtte af genbrugsmateriale", cost: 180 },
+    { id: "7", title: "Yoga adgang (naturfokus)", cost: 120 },
+    { id: "8", title: "Økologisk energibar", cost: 30 },
+  ];
 
-<Terminal cmd={['$ npx create-expo-app@latest']} />
+  const redeemReward = (item) => {
+    if (points >= item.cost) {
+      setPoints(points - item.cost);
+      alert(`Tillykke! Du har indløst: ${item.title}`);
+    } else {
+      alert("Du har ikke nok point til denne belønning.");
+    }
+  };
 
-> You can choose a different template by adding the [`--template` option](/more/create-expo/#--template).
+  if (hasPermission === null) {
+    return <View><Text>Bruger tilladelser til kamera...</Text></View>;
+  }
+  if (hasPermission === false) {
+    return <View><Text>Ingen adgang til kamera</Text></View>;
+  }
 
-## Next step
+  return (
+    <View style={{ flex: 1, padding: 20, backgroundColor: "#f0fdf4" }}>
+      <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 10 }}>
+        AffaldsSortering App ♻️
+      </Text>
+      <Text style={{ fontSize: 18, marginBottom: 20 }}>Point: {points}</Text>
 
-You have a project. Now it's time to set up your development environment so that you can start developing.
+      {showCamera ? (
+        <Camera style={{ flex: 1 }} type={Camera.Constants.Type.back} ref={(ref) => setCamera(ref)}>
+          <View style={{ flex: 1, justifyContent: "flex-end", margin: 20 }}>
+            <Button title="📸 Tag billede" onPress={takePicture} />
+          </View>
+        </Camera>
+      ) : (
+        <>
+          <Button title="Scan affald med kamera" onPress={() => setShowCamera(true)} />
+
+          {photo && (
+            <Image source={{ uri: photo }} style={{ width: "100%", height: 200, marginTop: 20, borderRadius: 10 }} />
+          )}
+
+          {wasteCategory && (
+            <Text style={{ fontSize: 20, marginTop: 20 }}>
+              Dette affald hører til i: {wasteCategory}
+            </Text>
+          )}
+
+          <Text style={{ fontSize: 22, marginTop: 30, marginBottom: 10 }}>Belønninger:</Text>
+
+          <FlatList
+            data={rewards}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#fff",
+                  padding: 15,
+                  marginBottom: 10,
+                  borderRadius: 10,
+                  shadowColor: "#000",
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                }}
+                onPress={() => redeemReward(item)}
+              >
+                <Text style={{ fontSize: 18 }}>{item.title}</Text>
+                <Text style={{ color: "gray" }}>Pris: {item.cost} point</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </>
+      )}
+    </View>
+  );
+}
